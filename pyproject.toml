@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "urillm"
+version = "0.1.0"
+description = "llm:// URI capability pack (vision/heuristic) for urisys-node"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [{ name = "urisys contributors" }, { name = "Tom Sapletta", email = "tom@sapletta.com" }]
+keywords = ["uri", "urisys", "urillm"]
+dependencies = ["urisysedge>=0.1.0"]
+
+[project.optional-dependencies]
+vision = ["litellm>=1.40"]
+dev = ["pytest>=8.0", "goal>=2.1.0"]
+
+[tool.uv.sources]
+urisysedge = { path = "../urisysedge", editable = true }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["urillm*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
