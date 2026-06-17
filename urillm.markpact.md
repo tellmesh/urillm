@@ -1,3 +1,98 @@
+# UriPack: urillm
+
+Self-contained Markpact — definitions, full source, run config. Unpack & run: `urisys markpact run urillm/urillm.markpact.md --as service` (writes `.markpact/`).
+
+```yaml markpact:pack
+apiVersion: urisys.io/v1
+kind: UriPack
+metadata:
+  id: urillm-pack
+  version: 1.0.0
+  language: python
+description: LLM vision, planning and chat for urisys-node (mock/heuristic/litellm/openai).
+schemes:
+- llm
+capabilities:
+- id: llm.vision.analyze
+  uri: llm://{host}/vision/query/analyze
+  kind: query
+  operation: llm.vision.analyze
+  handler: python://urillm.handlers:vision_analyze
+  side_effects: false
+  approval: not_required
+- id: llm.text.plan
+  uri: llm://{host}/text/query/plan
+  kind: query
+  operation: llm.text.plan
+  handler: python://urillm.handlers:text_plan
+  side_effects: false
+  approval: not_required
+- id: llm.text.decide
+  uri: llm://{host}/text/query/decide
+  kind: query
+  operation: llm.text.decide
+  handler: python://urillm.handlers:text_decide
+  side_effects: false
+  approval: not_required
+- id: llm.chat.completion
+  uri: llm://{host}/chat/query/completion
+  kind: query
+  operation: llm.chat.completion
+  handler: python://urillm.handlers:chat_completion
+  side_effects: false
+  approval: not_required
+- id: llm.chat.completion
+  uri: llm://{host}/chat/command/completion
+  kind: command
+  operation: llm.chat.completion
+  handler: python://urillm.handlers:chat_completion
+  side_effects: true
+  approval: required
+policy:
+  default: deny_mutations_without_approval
+runtime:
+  default_environment: mock
+  supports:
+  - mock
+  - local
+  - docker
+```
+
+```yaml markpact:run
+modes:
+- pack
+- service
+- flow
+- interface
+- adapter
+default: service
+scheme: llm
+service:
+  port: 8790
+  wire: POST /uri/call
+flow:
+  ids:
+  - llm-guided-gui-click
+adapter:
+  wire: POST /uri/call
+  events: GET /events
+```
+
+```python markpact:module path=urillm/__init__.py
+from __future__ import annotations
+
+from importlib.resources import files
+
+from .routes import register
+
+__all__ = ["register", "manifest_path"]
+
+
+def manifest_path():
+    return files(__package__).joinpath("manifest.yaml")
+```
+
+```python markpact:module path=urillm/handlers.py
 from __future__ import annotations
 
 import json
@@ -491,3 +586,39 @@ def text_decide(payload: dict[str, Any], context: dict[str, Any]) -> dict[str, A
         return decision_from_parsed(parsed, model, question)
     except (urllib.error.URLError, TimeoutError, KeyError, json.JSONDecodeError, ValueError, RuntimeError):
         return _mock_decide(question, context_value)
+```
+
+```python markpact:module path=urillm/routes.py
+from __future__ import annotations
+
+from importlib.resources import files
+
+from urisysedge.manifest import register_manifest_file
+
+
+def register(runtime):
+    register_manifest_file(runtime, files(__package__).joinpath("manifest.yaml"))
+```
+
+```yaml markpact:flow id=llm-guided-gui-click
+flow:
+  id: llm-guided-gui-click
+  description: Screenshot, OCR, LLM vision analyze, then click Install (KVM + OCR + LLM).
+
+defaults:
+  approved: true
+  dry_run: true
+
+do:
+  - kvm://local/monitor/primary/query/screenshot
+  - ocr://local/image/latest/query/text
+  - llm://local/vision/query/analyze:
+      target_text: Install
+  - kvm://local/task/command/click-text:
+      text: Install
+```
+
+```markdown markpact:docs
+# urillm
+```
+

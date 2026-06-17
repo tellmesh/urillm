@@ -22,6 +22,16 @@ def test_plan_type_letter():
     assert result['payload']['text'] == 'z'
 
 
+def test_plan_kvm_click_phrase():
+    result = text_plan(
+        {'transcript': 'kliknij OK', 'allowed_schemes': ['kvm']},
+        {'approved': True, 'dry_run': False, 'allow_real': True},
+    )
+    assert result['ok']
+    assert result['uri'] == 'kvm://local/task/command/click-text'
+    assert result['payload']['text'] == 'OK'
+
+
 def test_plan_rejects_disallowed_scheme():
     result = text_plan(
         {'transcript': 'move mouse', 'allowed_schemes': ['kvm']},

@@ -1,0 +1,36 @@
+id: urillm
+version: 1
+scheme: llm
+description: LLM vision, planning and chat for urisys-node (mock/heuristic/litellm/openai).
+uri_patterns:
+  - pattern: llm://{host}/vision/query/analyze
+    kind: query
+    operation: llm.vision.analyze
+    side_effects: false
+    approval: not_required
+  - pattern: llm://{host}/text/query/plan
+    kind: query
+    operation: llm.text.plan
+    side_effects: false
+    approval: not_required
+  - pattern: llm://{host}/text/query/decide
+    kind: query
+    operation: llm.text.decide
+    side_effects: false
+    approval: not_required
+  - pattern: llm://{host}/chat/query/completion
+    kind: query
+    operation: llm.chat.completion
+    side_effects: false
+    approval: not_required
+  - pattern: llm://{host}/chat/command/completion
+    kind: command
+    operation: llm.chat.completion
+    side_effects: true
+    approval: required
+handlers:
+  python:
+    llm.vision.analyze: python://urillm.handlers:vision_analyze
+    llm.text.plan: python://urillm.handlers:text_plan
+    llm.text.decide: python://urillm.handlers:text_decide
+    llm.chat.completion: python://urillm.handlers:chat_completion

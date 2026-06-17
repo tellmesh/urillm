@@ -229,3 +229,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Markpact unpack output (urisys markpact run/materialize)
+.markpact/
