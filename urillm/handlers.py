@@ -214,3 +214,201 @@ def _vision_analyze(payload, context):
 
 def vision_analyze(payload, context):
     return _vision_analyze(payload, context)
+
+
+def _real_allowed(context):
+    return bool(context.get('allow_real') or os.environ.get('URISYS_ALLOW_REAL') == '1')
+
+
+def _env(name, cfg, context, default=None):
+    env_name = cfg.get(f'{name}_env') or name.upper()
+    explicit = cfg.get(name)
+    if explicit is not None:
+        return str(explicit)
+    return resolve_env_var(env_name, context, secret=is_secret_env(env_name), default=default)
+
+
+def _openai_compatible_chat(messages, model, api_key, base_url, temperature=0.0, max_tokens=512):
+    url = base_url.rstrip('/') + '/chat/completions'
+    body = json.dumps({
+        'model': model,
+        'messages': messages,
+        'temperature': temperature,
+        'max_tokens': max_tokens,
+    }).encode('utf-8')
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {api_key}'},
+        method='POST',
+    )
+    with urllib.request.urlopen(req, timeout=90) as resp:
+        data = json.loads(resp.read().decode('utf-8'))
+    return _parse_json_response(data['choices'][0]['message']['content'])
+
+
+def _litellm_plan_chat(messages, model, temperature=0.0, max_tokens=512):
+    try:
+        import litellm  # type: ignore
+    except Exception as exc:
+        raise RuntimeError('litellm driver requires: pip install litellm') from exc
+    response = litellm.completion(
+        model=model,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    return _parse_json_response(response.choices[0].message.content)
+
+
+_OFFICE_PHRASE_MAP: list[tuple[str, str, dict]] = [
+    ('scroll down', 'him://local/mouse/command/scroll', {'amount': -3}),
+    ('scroll up', 'him://local/mouse/command/scroll', {'amount': 3}),
+    ('scroll', 'him://local/mouse/command/scroll', {'amount': -3}),
+    ('przewiń', 'him://local/mouse/command/scroll', {'amount': -3}),
+    ('move mouse', 'him://local/mouse/command/move', {'x': 400, 'y': 300}),
+    ('rusz mysz', 'him://local/mouse/command/move', {'x': 400, 'y': 300}),
+]
+
+
+def _match_office_transcript(text: str, allowed: list[str] | None = None) -> tuple[str, dict]:
+    lowered = (text or '').lower().strip()
+    schemes = {s.lower() for s in allowed} if allowed else None
+
+    if not schemes or "urimail" in schemes:
+        if any(k in lowered for k in ("unread", "summarize", "summary", "mail", "inbox", "draft", "reply")):
+            return "urimail://local/message/command/compose", {
+                "subject": "Re: Weekly report",
+                "body": "Thanks — I'll review and reply tomorrow.",
+            }
+
+    if not schemes or "urioffice" in schemes:
+        if any(k in lowered for k in ("writer", "document", "paragraph", "docx", "quarterly", "report")):
+            return "urioffice://local/writer/command/render", {
+                "title": "writer-output",
+                "text": "Quarterly results show steady growth across all regions.",
+                "format": "txt",
+            }
+
+    for phrase, uri, payload in _OFFICE_PHRASE_MAP:
+        if phrase in lowered:
+            out = dict(payload)
+            coords = re.search(r'x[:\s=]+(\d+)[^\d]+y[:\s=]+(\d+)', lowered)
+            if coords and 'move' in uri:
+                out.update({'x': int(coords.group(1)), 'y': int(coords.group(2))})
+            letter = re.search(r"letter ['\"]?([a-z])['\"]?", lowered)
+            if letter and 'type' in lowered:
+                return 'him://local/keyboard/command/type', {'text': letter.group(1)}
+            scroll_amount = re.search(r'amount[:\s=]+(-?\d+)', lowered)
+            if scroll_amount and 'scroll' in uri:
+                out['amount'] = int(scroll_amount.group(1))
+            return uri, out
+    letter = re.search(r"letter ['\"]?([a-z])['\"]?", lowered)
+    if letter or re.search(r'\btype\b', lowered):
+        ch = letter.group(1) if letter else 'a'
+        return 'him://local/keyboard/command/type', {'text': ch}
+    if 'move' in lowered or 'mysz' in lowered:
+        coords = re.search(r'x[:\s=]+(\d+)[^\d]+y[:\s=]+(\d+)', lowered)
+        if coords:
+            return 'him://local/mouse/command/move', {'x': int(coords.group(1)), 'y': int(coords.group(2))}
+        return 'him://local/mouse/command/move', {'x': 400, 'y': 300}
+    if 'scroll' in lowered or 'przewi' in lowered:
+        amount = -3 if 'down' in lowered or 'w dół' in lowered or 'dół' in lowered else 3
+        return 'him://local/mouse/command/scroll', {'amount': amount}
+    return 'him://local/keyboard/command/type', {'text': ' '}
+
+
+def _plan_messages(transcript: str, allowed: list[str] | None) -> list[dict]:
+    schemes = ', '.join(allowed) if allowed else 'him, kvm, browser, screen'
+    examples = '\n'.join(
+        f'- "{phrase}" -> {uri} payload={json.dumps(payload)}'
+        for phrase, uri, payload in _OFFICE_PHRASE_MAP
+    )
+    prompt = (
+        'You map text commands to urisys URI calls for safe desktop office simulation. '
+        'Prefer small mouse moves, single-letter typing, and gentle scroll. '
+        'Never plan clicks on buttons, Enter, Alt+F4, or destructive actions. '
+        'Return JSON only with keys: uri (string), payload (object). '
+        f'Allowed URI schemes (segment before ://): {schemes}.\n'
+        f'Examples:\n{examples}\n'
+        f'Transcript: {transcript}'
+    )
+    return [{'role': 'user', 'content': prompt}]
+
+
+def _plan_from_parsed(parsed: dict, model: str, transcript: str) -> dict:
+    uri = str(parsed.get('uri') or '').strip()
+    inner_payload = parsed.get('payload') if isinstance(parsed.get('payload'), dict) else {}
+    if not uri:
+        raise ValueError('missing uri in LLM plan response')
+    return {
+        'ok': True,
+        'uri': uri,
+        'payload': inner_payload,
+        'transcript': transcript,
+        'model': model,
+    }
+
+
+def text_plan(payload, context):
+    transcript = str(payload.get('transcript') or payload.get('text') or '').strip()
+    if not transcript:
+        return {'ok': False, 'error': 'payload.transcript is required'}
+    allowed = payload.get('allowed_schemes')
+    schemes = [str(s).strip() for s in allowed] if isinstance(allowed, list) else None
+
+    cfg = _llm_cfg(context)
+    driver = _driver(context)
+    model_used = 'phrase-map'
+    uri, inner_payload = _match_office_transcript(transcript, schemes)
+
+    if not context.get('dry_run') and _real_allowed(context) and driver not in ('mock', 'heuristic'):
+        model = _env('model', cfg, context)
+        api_key = (
+            _env('api_key', cfg, context)
+            or resolve_env_var('OPENROUTER_API_KEY', context, secret=True)
+            or resolve_env_var('OPENAI_API_KEY', context, secret=True)
+        )
+        base_url = _env('base_url', cfg, context)
+        temperature = float(_env('temperature', cfg, context) or '0')
+        max_tokens = int(_env('max_tokens', cfg, context) or '512')
+        if model and api_key and driver in ('litellm', 'openai', 'openrouter'):
+            messages = _plan_messages(transcript, schemes)
+            try:
+                if driver == 'litellm':
+                    if not str(model).startswith('openrouter/') and resolve_env_var('OPENROUTER_API_KEY', context, secret=True):
+                        model = f'openrouter/{model.lstrip("openrouter/")}'
+                    parsed = _litellm_plan_chat(messages, model, temperature=temperature, max_tokens=max_tokens)
+                else:
+                    if not base_url:
+                        base_url = (
+                            'https://openrouter.ai/api/v1'
+                            if resolve_env_var('OPENROUTER_API_KEY', context, secret=True)
+                            else 'https://api.openai.com/v1'
+                        )
+                    parsed = _openai_compatible_chat(
+                        messages, model, api_key, base_url, temperature, max_tokens,
+                    )
+                planned = _plan_from_parsed(parsed, model, transcript)
+                uri = planned['uri']
+                inner_payload = planned['payload']
+                model_used = str(model)
+            except (urllib.error.URLError, TimeoutError, KeyError, json.JSONDecodeError, ValueError, RuntimeError):
+                pass
+
+    scheme = uri.split('://', 1)[0]
+    if schemes and scheme not in schemes:
+        return {
+            'ok': False,
+            'error': f'scheme {scheme!r} not in allowed_schemes',
+            'uri': uri,
+            'payload': inner_payload,
+            'transcript': transcript,
+        }
+    return {
+        'ok': True,
+        'uri': uri,
+        'payload': inner_payload,
+        'transcript': transcript,
+        'model': model_used,
+    }
