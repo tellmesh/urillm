@@ -23,6 +23,9 @@ urillm = ["manifest.yaml"]
 [tool.uv.sources]
 urioperators = { path = "../urioperators", editable = true }
 uricontrol = { path = "../uricontrol", editable = true }
+uriguard = { path = "../uriguard", editable = true }
+uriresolver = { path = "../uriresolver", editable = true }
+uritransport = { path = "../uritransport", editable = true }
 
 [tool.setuptools.packages.find]
 where = ["."]
