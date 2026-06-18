@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from urisysedge.runtime import Runtime
+from uri_control.edge.runtime import Runtime
 
 import urillm
 

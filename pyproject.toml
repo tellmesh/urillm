@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 license = "Apache-2.0"
 authors = [{ name = "urisys contributors" }, { name = "Tom Sapletta", email = "tom@sapletta.com" }]
 keywords = ["uri", "urisys", "urillm"]
-dependencies = ["urisysedge>=0.1.0", "urioperators>=0.1.0", "PyYAML>=6.0"]
+dependencies = ["uricore>=0.1.8", "urioperators>=0.1.0", "PyYAML>=6.0"]
 
 [project.optional-dependencies]
 vision = ["litellm>=1.40"]
@@ -21,7 +21,6 @@ dev = ["pytest>=8.0", "goal>=2.1.0", "uricore>=0.1.8"]
 urillm = ["manifest.yaml"]
 
 [tool.uv.sources]
-urisysedge = { path = "../urisysedge", editable = true }
 urioperators = { path = "../urioperators", editable = true }
 uricore = { path = "../uricore", editable = true }
 

@@ -7,7 +7,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from urisysedge.env import is_secret_env, resolve_env_var
+from uri_control.edge.env import is_secret_env, resolve_env_var
 from urioperators import (
     decision_from_parsed,
     litellm_chat,
