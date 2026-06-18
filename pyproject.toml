@@ -4,25 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "urillm"
-version = "0.1.0"
+version = "0.1.1"
 description = "llm:// URI capability pack (vision/heuristic) for urisys-node"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 authors = [{ name = "urisys contributors" }, { name = "Tom Sapletta", email = "tom@sapletta.com" }]
 keywords = ["uri", "urisys", "urillm"]
-dependencies = ["uricore>=0.1.8", "urioperators>=0.1.0", "PyYAML>=6.0"]
+dependencies = ["uricontrol>=0.1.8", "urioperators>=0.1.0", "PyYAML>=6.0"]
 
 [project.optional-dependencies]
 vision = ["litellm>=1.40"]
-dev = ["pytest>=8.0", "goal>=2.1.0", "uricore>=0.1.8"]
+dev = ["pytest>=8.0", "goal>=2.1.0", "uricontrol>=0.1.8"]
 
 [tool.setuptools.package-data]
 urillm = ["manifest.yaml"]
 
 [tool.uv.sources]
 urioperators = { path = "../urioperators", editable = true }
-uricore = { path = "../uricore", editable = true }
+uricontrol = { path = "../uricontrol", editable = true }
 
 [tool.setuptools.packages.find]
 where = ["."]

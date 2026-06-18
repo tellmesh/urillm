@@ -3187,10 +3187,11 @@ wheels = [
 
 [[package]]
 name = "uricore"
-version = "0.1.8"
+version = "0.1.11"
 source = { editable = "../uricore" }
 dependencies = [
     { name = "pyyaml" },
+    { name = "urirouter" },
 ]
 
 [package.metadata]
@@ -3201,17 +3202,19 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6.0" },
+    { name = "urirouter", specifier = ">=0.1.0" },
+    { name = "urirouter", extras = ["mqtt"], marker = "extra == 'mqtt'", specifier = ">=0.1.0" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["mqtt", "dev"]
 
 [[package]]
 name = "urillm"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "pyyaml" },
+    { name = "uricore" },
     { name = "urioperators" },
-    { name = "urisysedge" },
 ]
 
 [package.optional-dependencies]
@@ -3230,9 +3233,9 @@ requires-dist = [
     { name = "litellm", marker = "extra == 'vision'", specifier = ">=1.40" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "uricore", editable = "../uricore" },
     { name = "uricore", marker = "extra == 'dev'", editable = "../uricore" },
     { name = "urioperators", editable = "../urioperators" },
-    { name = "urisysedge", editable = "../urisysedge" },
 ]
 provides-extras = ["vision", "dev"]
 
@@ -3242,24 +3245,10 @@ version = "0.1.0"
 source = { editable = "../urioperators" }
 
 [[package]]
-name = "urisysedge"
-version = "0.1.1"
-source = { editable = "../urisysedge" }
-dependencies = [
-    { name = "pyyaml" },
-    { name = "uricore" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "costs", marker = "extra == 'dev'", specifier = ">=0.1.20" },
-    { name = "goal", marker = "extra == 'dev'", specifier = ">=2.1.0" },
-    { name = "pfix", marker = "extra == 'dev'", specifier = ">=0.1.60" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "uricore", specifier = ">=0.1.8" },
-]
-provides-extras = ["dev"]
+name = "urirouter"
+version = "1.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8f/24/5c77a2b1a7149198a8ad394333e2abf09b6f1b242d7cdb8d9e515c7009d4/URIRouter-1.0.3.tar.gz", hash = "sha256:9d2a5fc9a2ddd62acc65da9a469c90fc501b09a10fc45cbed13dfe757195470c", size = 4578, upload-time = "2022-05-17T00:22:42.348Z" }
 
 [[package]]
 name = "urllib3"
